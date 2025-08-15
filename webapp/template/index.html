@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <head><title>Clasificador de Frutas</title></head>
+  <body>
+    <h1>Sube una imagen de fruta</h1>
+    <form action="/predict" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept="image/*"/>
+      <input type="submit" value="Enviar"/>
+    </form>
+    <div id="result"></div>
+  </body>
+</html>
