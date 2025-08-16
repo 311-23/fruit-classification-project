@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+from utils import preprocess_image
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -6,10 +10,10 @@ from PIL import Image
 from utils import preprocess_image
 
 # Cargar modelo
-model = tf.keras.models.load_model("saved_models/best_model")
+model = tf.keras.models.load_model("../saved_models/best_model.keras")
 
 # Cargar class_indices
-with open("saved_models/class_indices.json", "r") as f:
+with open("../saved_models/class_indices.json", "r") as f:
     class_indices = json.load(f)
 classes = list(class_indices.keys())
 
