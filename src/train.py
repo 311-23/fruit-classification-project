@@ -198,7 +198,7 @@ else:
 # Guardar modelo y class_indices
 # -------------------
 os.makedirs('../saved_models', exist_ok=True)
-tf.keras.models.save_model(best_model, '../saved_models/best_model', save_format='tf')
+tf.keras.models.save_model(best_model, '../saved_models/best_model.h5') 
 
 with open('../saved_models/class_indices.json', 'w') as f:
     json.dump(train_flow.class_indices, f)

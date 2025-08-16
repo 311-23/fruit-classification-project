@@ -10,6 +10,9 @@ import seaborn as sns
 
 def evaluate_model(model_path, data_dir, class_indices_path, batch_size=2):
     # Cargar modelo
+    if not model_path.endswith(('.h5', '.keras')):
+        raise ValueError("El modelo debe tener extensión .h5 o .keras para Keras 3.")
+    
     model = tf.keras.models.load_model(model_path)
     print("✅ Modelo cargado.")
 
@@ -22,7 +25,7 @@ def evaluate_model(model_path, data_dir, class_indices_path, batch_size=2):
     test_gen = ImageDataGenerator(rescale=1./255)
     test_flow = test_gen.flow_from_directory(
         data_dir,
-        target_size=(160, 160),   # usa el tamaño mayor para seguridad
+        target_size=(160, 160),
         batch_size=batch_size,
         class_mode='categorical',
         shuffle=False
@@ -53,7 +56,7 @@ def evaluate_model(model_path, data_dir, class_indices_path, batch_size=2):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="../saved_models/best_model")
+    parser.add_argument("--model", type=str, default="../saved_models/best_model.keras")
     parser.add_argument("--data", type=str, default="../data/test")
     parser.add_argument("--classes", type=str, default="../saved_models/class_indices.json")
     args = parser.parse_args()
