@@ -15,37 +15,38 @@ from models import build_model_a, build_model_b, build_model_c
 DATA_DIR = '../data'
 IMG_SIZE_A = (128, 128)
 IMG_SIZE_C = (160, 160)
-BATCH = 32
-EPOCHS = 30
+BATCH = 2            # pocas imágenes → batch pequeño
+EPOCHS = 10          # pocas épocas para no sobreajustar
+FEW_SHOT = True      # activar lógica especial si usamos pocas imágenes
 
 # -------------------
-# Generadores de datos con aumentos
+# Generadores de datos
 # -------------------
 train_gen = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=25,
-    width_shift_range=0.12,
-    height_shift_range=0.12,
-    shear_range=0.12,
-    zoom_range=0.15,
+    rotation_range=35,
+    width_shift_range=0.18,
+    height_shift_range=0.18,
+    shear_range=0.18,
+    zoom_range=0.25,
     horizontal_flip=True,
-    brightness_range=(0.8, 1.2),
-    validation_split=0.15
+    brightness_range=(0.75, 1.25),
+    fill_mode='nearest'
 )
+val_gen = ImageDataGenerator(rescale=1./255)
 
 train_flow = train_gen.flow_from_directory(
     os.path.join(DATA_DIR, 'train'),
     target_size=IMG_SIZE_A,
     batch_size=BATCH,
     class_mode='categorical',
-    subset='training'
+    shuffle=True
 )
-val_flow = train_gen.flow_from_directory(
-    os.path.join(DATA_DIR, 'train'),
+val_flow = val_gen.flow_from_directory(
+    os.path.join(DATA_DIR, 'val'),
     target_size=IMG_SIZE_A,
     batch_size=BATCH,
     class_mode='categorical',
-    subset='validation',
     shuffle=False
 )
 
@@ -53,7 +54,7 @@ num_classes = len(train_flow.class_indices)
 print("Clases:", train_flow.class_indices)
 
 # -------------------
-# Función para entrenar y devolver mejor val_accuracy + history
+# Función para entrenar
 # -------------------
 def compile_and_train(model, target_size, name):
     model.compile(
@@ -61,35 +62,40 @@ def compile_and_train(model, target_size, name):
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
-    es = EarlyStopping(patience=6, restore_best_weights=True, monitor='val_loss')
-    rl = ReduceLROnPlateau(factor=0.5, patience=3, min_lr=1e-6)
+    es = EarlyStopping(patience=4, restore_best_weights=True, monitor='val_loss')
+    rl = ReduceLROnPlateau(factor=0.5, patience=2, min_lr=1e-6)
 
-    if target_size != IMG_SIZE_A:
+    # Ajustar tamaño de imagen si es necesario
+    if target_size != (train_flow.target_size[0], train_flow.target_size[1]):
         flow = train_gen.flow_from_directory(
             os.path.join(DATA_DIR, 'train'),
             target_size=target_size,
             batch_size=BATCH,
             class_mode='categorical',
-            subset='training'
+            shuffle=True
         )
-        vflow = train_gen.flow_from_directory(
-            os.path.join(DATA_DIR, 'train'),
+        vflow = val_gen.flow_from_directory(
+            os.path.join(DATA_DIR, 'val'),
             target_size=target_size,
             batch_size=BATCH,
             class_mode='categorical',
-            subset='validation',
             shuffle=False
         )
     else:
         flow, vflow = train_flow, val_flow
 
+    steps_per_epoch = max(1, flow.samples // BATCH)
+    val_steps = max(1, vflow.samples // BATCH)
+
     history = model.fit(
         flow,
         epochs=EPOCHS,
         validation_data=vflow,
-        callbacks=[es, rl]
+        steps_per_epoch=steps_per_epoch,
+        validation_steps=val_steps,
+        callbacks=[es, rl],
+        verbose=1
     )
-
     best_val_acc = max(history.history['val_accuracy'])
     return model, best_val_acc, history
 
@@ -105,33 +111,44 @@ m_b, acc_b, h_b = compile_and_train(build_model_b((IMG_SIZE_A[0], IMG_SIZE_A[1],
 print("Entrenando modelo C (fase 1)...")
 m_c, acc_c, h_c = compile_and_train(build_model_c((IMG_SIZE_C[0], IMG_SIZE_C[1], 3), num_classes), IMG_SIZE_C, 'model_c')
 
-# Fine-tuning modelo C
-m_c.layers[1].trainable = True
-for layer in m_c.layers[1].layers[:-25]:
-    layer.trainable = False
-m_c.compile(optimizer=tf.keras.optimizers.Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
-ft_flow = train_gen.flow_from_directory(
-    os.path.join(DATA_DIR, 'train'),
-    target_size=IMG_SIZE_C,
-    batch_size=BATCH,
-    class_mode='categorical',
-    subset='training'
-)
-ft_vflow = train_gen.flow_from_directory(
-    os.path.join(DATA_DIR, 'train'),
-    target_size=IMG_SIZE_C,
-    batch_size=BATCH,
-    class_mode='categorical',
-    subset='validation',
-    shuffle=False
-)
-history_ft = m_c.fit(ft_flow, epochs=10, validation_data=ft_vflow)
-acc_c_ft = max(history_ft.history['val_accuracy'])
-if acc_c_ft > acc_c:
-    acc_c = acc_c_ft
-    # concatenar histories
-    for k in h_c.history.keys():
-        h_c.history[k] += history_ft.history[k]
+# -------------------
+# Fine-tuning condicional
+# -------------------
+total_train = train_flow.samples
+if not FEW_SHOT and total_train >= 40:
+    print("Haciendo fine-tuning del modelo C...")
+    m_c.layers[1].trainable = True
+    for layer in m_c.layers[1].layers[:-25]:
+        layer.trainable = False
+    m_c.compile(optimizer=tf.keras.optimizers.Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+
+    ft_flow = train_gen.flow_from_directory(
+        os.path.join(DATA_DIR, 'train'),
+        target_size=IMG_SIZE_C,
+        batch_size=BATCH,
+        class_mode='categorical',
+        shuffle=True
+    )
+    ft_vflow = val_gen.flow_from_directory(
+        os.path.join(DATA_DIR, 'val'),
+        target_size=IMG_SIZE_C,
+        batch_size=BATCH,
+        class_mode='categorical',
+        shuffle=False
+    )
+    steps_per_epoch = max(1, ft_flow.samples // BATCH)
+    val_steps = max(1, ft_vflow.samples // BATCH)
+
+    history_ft = m_c.fit(ft_flow, epochs=6, validation_data=ft_vflow,
+                         steps_per_epoch=steps_per_epoch, validation_steps=val_steps, verbose=1)
+    acc_c_ft = max(history_ft.history['val_accuracy'])
+    if acc_c_ft > acc_c:
+        acc_c = acc_c_ft
+        # concatenar histories
+        for k in h_c.history.keys():
+            h_c.history[k] += history_ft.history[k]
+else:
+    print("Few-shot detectado: se omite el fine-tuning para evitar sobreajuste.")
 
 # -------------------
 # Crear carpeta para gráficas
@@ -189,15 +206,14 @@ with open('../saved_models/class_indices.json', 'w') as f:
 print("✅ Modelo y class_indices guardados en ../saved_models/")
 
 # -------------------
-# Matriz de confusión del mejor modelo
+# Matriz de confusión
 # -------------------
 test_gen = ImageDataGenerator(rescale=1./255)
 test_flow = test_gen.flow_from_directory(
-    os.path.join(DATA_DIR, 'train'),
+    os.path.join(DATA_DIR, 'val'),
     target_size=best_img_size,
     batch_size=BATCH,
     class_mode='categorical',
-    subset='validation',
     shuffle=False
 )
 
