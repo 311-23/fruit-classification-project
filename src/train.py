@@ -13,8 +13,8 @@ from models import build_model_a, build_model_b, build_model_c
 # Configuración
 # -------------------
 DATA_DIR = '../data'
-IMG_SIZE_A = (128, 128)
-IMG_SIZE_C = (160, 160)
+IMG_SIZE_A = (100, 100)
+IMG_SIZE_C = (100, 100)
 BATCH = 2            # pocas imágenes → batch pequeño
 EPOCHS = 10          # pocas épocas para no sobreajustar
 FEW_SHOT = True      # activar lógica especial si usamos pocas imágenes

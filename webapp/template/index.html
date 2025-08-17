@@ -1,12 +1,85 @@
-<!doctype html>
-<html>
-  <head><title>Clasificador de Frutas</title></head>
-  <body>
-    <h1>Sube una imagen de fruta</h1>
-    <form action="/predict" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" accept="image/*"/>
-      <input type="submit" value="Enviar"/>
-    </form>
-    <div id="result"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Clasificador de Frutas 🍎🍌🍊</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #f9f9f9, #ffeaa7);
+      font-family: Arial, sans-serif;
+    }
+    .card {
+      margin-top: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+    #preview {
+      max-width: 100%;
+      margin-top: 15px;
+    }
+    video, canvas {
+      width: 100%;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center">
+    <h1 class="mt-4">🍓 Clasificador de Frutas 🍇</h1>
+    <p class="text-muted">Sube una imagen o usa tu cámara para identificar la fruta</p>
+
+    <div class="card p-4">
+      <!-- Subir imagen -->
+      <form id="uploadForm" action="/predict" method="post" enctype="multipart/form-data">
+        <input class="form-control" type="file" name="file" id="fileInput" accept="image/*">
+        <button class="btn btn-success mt-3" type="submit">Clasificar Imagen 📤</button>
+      </form>
+
+      <hr>
+
+      <!-- Cámara -->
+      <h4>O usa tu cámara 📸</h4>
+      <video id="camera" autoplay></video>
+      <button class="btn btn-primary mt-2" id="captureBtn">Tomar Foto</button>
+      <canvas id="canvas" style="display:none;"></canvas>
+      <form id="cameraForm" action="/predict_camera" method="post">
+        <input type="hidden" name="imageData" id="imageData">
+        <button class="btn btn-warning mt-3" type="submit">Clasificar Foto</button>
+      </form>
+    </div>
+
+    <div id="result" class="mt-4">
+      {% if prediction %}
+        <h3>🔮 Resultado: <strong>{{ prediction }}</strong></h3>
+      {% endif %}
+    </div>
+  </div>
+
+<script>
+  // Inicializar cámara
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('canvas');
+  const captureBtn = document.getElementById('captureBtn');
+  const imageDataInput = document.getElementById('imageData');
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+      video.srcObject = stream;
+    });
+  }
+
+  captureBtn.addEventListener('click', function() {
+    const context = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convertir imagen a base64 y guardarla en input oculto
+    const dataUrl = canvas.toDataURL('image/png');
+    imageDataInput.value = dataUrl;
+    alert("✅ Foto capturada, ahora presiona 'Clasificar Foto'.");
+  });
+</script>
+</body>
 </html>

@@ -24,12 +24,12 @@ def evaluate_model(model_path, data_dir, class_indices_path, batch_size=2):
     # Generador de test
     test_gen = ImageDataGenerator(rescale=1./255)
     test_flow = test_gen.flow_from_directory(
-        data_dir,
-        target_size=(160, 160),
-        batch_size=batch_size,
-        class_mode='categorical',
-        shuffle=False
-    )
+    data_dir,
+    target_size=(100,100),
+    batch_size=batch_size,
+    class_mode='categorical',
+    shuffle=False
+)
 
     # Evaluar
     loss, acc = model.evaluate(test_flow, verbose=1)

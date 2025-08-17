@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models, applications
 
-def build_model_a(input_shape=(128,128,3), num_classes=3):
-    # Modelo A: CNN simple (baseline)
+def build_model_a(input_shape=(100,100,3), num_classes=3):
     inputs = layers.Input(shape=input_shape)
     x = layers.Conv2D(32,3,activation='relu',padding='same')(inputs)
     x = layers.MaxPooling2D()(x)
@@ -16,8 +15,7 @@ def build_model_a(input_shape=(128,128,3), num_classes=3):
     outputs = layers.Dense(num_classes,activation='softmax')(x)
     return models.Model(inputs, outputs, name='model_a')
 
-def build_model_b(input_shape=(128,128,3), num_classes=3):
-    # Modelo B: deeper + batchnorm + dropout
+def build_model_b(input_shape=(100,100,3), num_classes=3):
     inputs = layers.Input(shape=input_shape)
     x = layers.Conv2D(32,3,padding='same')(inputs)
     x = layers.BatchNormalization()(x)
@@ -43,10 +41,9 @@ def build_model_b(input_shape=(128,128,3), num_classes=3):
     outputs = layers.Dense(num_classes,activation='softmax')(x)
     return models.Model(inputs, outputs, name='model_b')
 
-def build_model_c(input_shape=(160,160,3), num_classes=3):
-    # Modelo C: Transfer learning (MobileNetV2)
+def build_model_c(input_shape=(100,100,3), num_classes=3):
     base = applications.MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet')
-    base.trainable = False  # primera fase: congelado
+    base.trainable = False
     inputs = layers.Input(shape=input_shape)
     x = base(inputs, training=False)
     x = layers.GlobalAveragePooling2D()(x)
