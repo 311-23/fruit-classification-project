@@ -69,7 +69,7 @@ st.markdown(
 # ==============================
 # Cargar modelo y clases
 # ==============================
-model = tf.keras.models.load_model("../saved_models/best_model.keras")
+model = tf.keras.models.load_model("../saved_models/best_model.h5")
 
 with open("../saved_models/class_indices.json", "r") as f:
     class_indices = json.load(f)
@@ -83,7 +83,7 @@ st.markdown("Sube una imagen y nuestra **IA con redes neuronales convolucionales
 
 st.markdown("### 📖 ¿Cómo funciona?")
 st.markdown("""
-1. 🔍 **Preprocesamiento:** La imagen se redimensiona y normaliza.  
+1. 🔍 **Preprocesamiento:** La imagen se redimensiona y normaliza a 100x100.  
 2. 🧠 **Predicción CNN:** El modelo analiza patrones como colores, texturas y bordes.  
 3. 🎯 **Clasificación:** Se asigna la clase con la mayor probabilidad.  
 """)
@@ -94,8 +94,8 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="📸 Imagen subida", use_column_width=True)
 
-    # Preprocesar
-    img_array = preprocess_image(image, target_size=(160,160))
+    # Preprocesar (ahora tamaño 100x100)
+    img_array = preprocess_image(image, target_size=(100, 100))
 
     # Predicción
     preds = model.predict(img_array)
